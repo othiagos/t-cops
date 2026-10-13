@@ -1,0 +1,36 @@
+NAME: burma14_CluTOP
+TYPE: CluTOP
+COMMENT: Instancia gerada com fator especifico para CluTOP
+DIMENSION: 14
+SUBGROUPS: 4
+CLUSTERS: 4
+VEHICLES: 2
+EDGE_WEIGHT_TYPE: EUC_2D
+NODE_COORD_SECTION: id x y
+0 16.47 96.10
+1 16.47 94.44
+2 20.09 92.54
+3 22.39 93.37
+4 25.23 97.24
+5 22.00 96.05
+6 20.47 97.02
+7 17.20 96.29
+8 16.30 97.38
+9 14.05 98.12
+10 16.53 97.38
+11 21.52 95.59
+12 19.41 97.13
+13 20.09 94.55
+SUBGROUP_SECTION: subgroup_id profit id-vertex-list
+0 0.0 0
+1 160.0 2 3 13
+2 205.0 1 7 8 9 10
+3 228.0 4 5 6 11 12
+CLUSTER_SECTION: cluster_id id-subgroup-list
+0 0
+1 1
+2 2
+3 3
+VEHICLES_SECTION: id tmax start_node_id end_node_id
+0 1662.0 0 0
+1 1662.0 0 0

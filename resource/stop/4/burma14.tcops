@@ -1,0 +1,48 @@
+NAME: burma14_STOP
+TYPE: STOP
+COMMENT: Instancia gerada com fator especifico para STOP
+DIMENSION: 14
+SUBGROUPS: 14
+CLUSTERS: 4
+VEHICLES: 4
+EDGE_WEIGHT_TYPE: EUC_2D
+NODE_COORD_SECTION: id x y
+0 16.47 96.10
+1 16.47 94.44
+2 20.09 92.54
+3 22.39 93.37
+4 25.23 97.24
+5 22.00 96.05
+6 20.47 97.02
+7 17.20 96.29
+8 16.30 97.38
+9 14.05 98.12
+10 16.53 97.38
+11 21.52 95.59
+12 19.41 97.13
+13 20.09 94.55
+SUBGROUP_SECTION: subgroup_id profit id-vertex-list
+0 0.0 0
+1 15.0 1
+2 56.0 2
+3 97.0 3
+4 38.0 4
+5 79.0 5
+6 20.0 6
+7 61.0 7
+8 2.0 8
+9 43.0 9
+10 84.0 10
+11 25.0 11
+12 66.0 12
+13 7.0 13
+CLUSTER_SECTION: cluster_id id-subgroup-list
+0 0
+1 2 3 13
+2 1 7 8 9 10
+3 4 5 6 11 12
+VEHICLES_SECTION: id tmax start_node_id end_node_id
+0 831.0 0 0
+1 831.0 0 0
+2 831.0 0 0
+3 831.0 0 0
