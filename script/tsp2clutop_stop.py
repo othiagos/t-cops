@@ -5,9 +5,9 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 # Configuration
-TSP_DIR = 'data/tsp'
-OUTPUT_DIR_CLUTOP = 'data/clutop/3'
-OUTPUT_DIR_STOP = 'data/stop/3'
+TSP_DIR = 'resource/tsp'
+OUTPUT_DIR_CLUTOP = 'resource/clutop/3'
+OUTPUT_DIR_STOP = 'resource/stop/3'
 SOLUTIONS_FILE = os.path.join(TSP_DIR, 'solutions')
 
 # Parameters
