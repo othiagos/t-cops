@@ -27,7 +27,9 @@ pub fn flow_conservation(
                 .map(|i| 1.0 * variables.x[r][j][i])
                 .sum();
 
-            model.add_constr(&format!("flow_cons_v{}_n{}", r, j), c!(sum_in == sum_out))?;
+            let y_rj = variables.y[r][j];
+            model.add_constr(&format!("flow_cons_in_v{}_n{}", r, j), c!(sum_in == y_rj))?;
+            model.add_constr(&format!("flow_cons_out_v{}_n{}", r, j), c!(sum_out == y_rj))?;
         }
 
         let depot_out: grb::Expr = (0..num_nodes)
@@ -62,8 +64,8 @@ pub fn cluster_entry(
             })
             .sum();
 
-        let y_k = variables.y[k];
-        model.add_constr(&format!("cluster_entry_{}", k), c!(entry_expr == y_k))?;
+        let z_k = variables.z[k];
+        model.add_constr(&format!("cluster_entry_{}", k), c!(entry_expr == z_k))?;
     }
 
     Ok(())
@@ -137,11 +139,7 @@ pub fn unique_customer_visit(
         }
 
         let visit_expr: grb::Expr = (0..num_vehicles)
-            .flat_map(|r| {
-                (0..num_nodes)
-                    .filter(move |&i| i != j)
-                    .map(move |i| 1.0 * variables.x[r][i][j])
-            })
+            .map(|r| 1.0 * variables.y[r][j])
             .sum();
 
         model.add_constr(&format!("unique_visit_{}", j), c!(visit_expr <= 1.0))?;

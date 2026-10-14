@@ -31,6 +31,7 @@ pub fn apply_preprocessing(
             let round_trip = instance.get_distance(depot, i) + instance.get_distance(i, depot);
             if round_trip > budget_r {
                 node_incompatible_r[i] = true;
+                model.add_constr(&format!("inacc_node_v{}_{}", r, i), c!(variables.y[r][i] == 0.0))?;
                 for j in 0..num_nodes {
                     if i != j {
                         model.add_constr(&format!("inacc_arc_in_v{}_{}_{}", r, j, i), c!(variables.x[r][j][i] == 0.0))?;
@@ -70,7 +71,7 @@ pub fn apply_preprocessing(
     for (k, cluster) in data.clusters.iter().enumerate() {
         let all_incompatible = cluster.node_ids.iter().all(|&nid| node_incompatible_all[nid]);
         if all_incompatible {
-            model.add_constr(&format!("inacc_cl_{}", k), c!(variables.y[k] == 0.0))?;
+            model.add_constr(&format!("inacc_cl_{}", k), c!(variables.z[k] == 0.0))?;
         }
     }
 

@@ -4,7 +4,8 @@ use crate::solvers::stop::cluster::StopData;
 
 pub struct DecisionVariables {
     pub x: Vec<Vec<Vec<Var>>>,
-    pub y: Vec<Var>,
+    pub y: Vec<Vec<Var>>,
+    pub z: Vec<Var>,
 }
 
 pub fn initialize_variables(
@@ -41,14 +42,25 @@ pub fn initialize_variables(
         x.push(x_r);
     }
 
-    // 2. y[k]: binary cluster visited variables
-    let mut y = Vec::with_capacity(num_clusters);
-    for k in 0..num_clusters {
-        let var = add_binvar!(model, name: &format!("y_cl_{}", k))?;
-        y.push(var);
+    // 2. y[r][i]: binary node visit variables per vehicle
+    let mut y: Vec<Vec<Var>> = Vec::with_capacity(num_vehicles);
+    for r in 0..num_vehicles {
+        let mut y_r = Vec::with_capacity(num_nodes);
+        for i in 0..num_nodes {
+            let var = add_binvar!(model, name: &format!("y_{}_{}", r, i))?;
+            y_r.push(var);
+        }
+        y.push(y_r);
     }
 
-    Ok(DecisionVariables { x, y })
+    // 3. z[k]: binary cluster visited variables
+    let mut z = Vec::with_capacity(num_clusters);
+    for k in 0..num_clusters {
+        let var = add_binvar!(model, name: &format!("z_cl_{}", k))?;
+        z.push(var);
+    }
+
+    Ok(DecisionVariables { x, y, z })
 }
 
 #[cfg(test)]
@@ -88,6 +100,8 @@ mod tests {
         assert_eq!(vars.x[0].len(), 3);
         assert_eq!(vars.x[0][0].len(), 3);
         assert_eq!(vars.y.len(), 1);
+        assert_eq!(vars.y[0].len(), 3);
+        assert_eq!(vars.z.len(), 1);
 
         Ok(())
     }

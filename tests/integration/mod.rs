@@ -3,3 +3,4 @@ pub mod heuristic;
 pub mod hierarchy;
 pub mod parser;
 pub mod solver_config;
+pub mod stop_subtour;

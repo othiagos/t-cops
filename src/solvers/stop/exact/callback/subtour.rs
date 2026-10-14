@@ -8,12 +8,14 @@ use crate::solvers::stop::exact::variable::DecisionVariables;
 pub struct StopCallbackCache {
     pub x_vars: Vec<Vec<Var>>,
     pub x_arcs: Vec<Vec<(usize, usize)>>,
+    pub y_vars: Vec<Vec<Var>>,
 }
 
 impl StopCallbackCache {
     pub fn new(variables: &DecisionVariables, num_vehicles: usize, num_nodes: usize) -> Self {
         let mut x_vars = Vec::with_capacity(num_vehicles);
         let mut x_arcs = Vec::with_capacity(num_vehicles);
+        let mut y_vars = Vec::with_capacity(num_vehicles);
 
         for r in 0..num_vehicles {
             let mut v_r = Vec::new();
@@ -28,9 +30,10 @@ impl StopCallbackCache {
             }
             x_vars.push(v_r);
             x_arcs.push(a_r);
+            y_vars.push(variables.y[r].clone());
         }
 
-        Self { x_vars, x_arcs }
+        Self { x_vars, x_arcs, y_vars }
     }
 }
 
@@ -119,19 +122,19 @@ impl<'a> StopSubtourCallback<'a> {
                     }
 
                     if comp.len() >= 2 && !comp.contains(&self.depot_id) {
-                        // DFJ subtour elimination cut:
+                        // 1. DFJ subtour elimination cut:
                         // sum_{u, v in comp, u != v} x_{r, u, v} <= |comp| - 1
-                        let dfj_expr: grb::Expr = comp
-                            .iter()
-                            .flat_map(|&u| {
-                                comp.iter().filter(move |&&v| u != v).map(move |&v| {
-                                    1.0 * self.variables.x[r][u][v]
-                                })
-                            })
-                            .sum();
-
+                        let dfj_expr = build_dfj_expr(self.variables, r, &comp);
                         let max_arcs = (comp.len() - 1) as f64;
                         ctx.add_lazy(c!(dfj_expr <= max_arcs))?;
+
+                        // 2. Cut-set constraint:
+                        // sum_{u not in comp, v in comp} x_{r, u, v} >= y_{r, v} for every v in comp
+                        let cut_expr = build_cut_set_expr(self.variables, r, &comp, self.num_nodes);
+                        for &v in &comp {
+                            let y_trigger = self.variables.y[r][v];
+                            ctx.add_lazy(c!(cut_expr.clone() >= y_trigger))?;
+                        }
                     }
                 }
             }
@@ -139,6 +142,35 @@ impl<'a> StopSubtourCallback<'a> {
 
         Ok(())
     }
+}
+
+/// Builds the DFJ subtour elimination expression for a component S
+pub fn build_dfj_expr(
+    variables: &DecisionVariables,
+    r: usize,
+    comp: &[usize],
+) -> grb::Expr {
+    comp.iter()
+        .flat_map(|&u| {
+            comp.iter().filter(move |&&v| u != v).map(move |&v| {
+                1.0 * variables.x[r][u][v]
+            })
+        })
+        .sum()
+}
+
+/// Builds the Cut-Set expression for a component S
+pub fn build_cut_set_expr(
+    variables: &DecisionVariables,
+    r: usize,
+    comp: &[usize],
+    num_nodes: usize,
+) -> grb::Expr {
+    let subset_bar: Vec<usize> = (0..num_nodes).filter(|n| !comp.contains(n)).collect();
+    subset_bar
+        .iter()
+        .flat_map(|&u| comp.iter().map(move |&v| 1.0 * variables.x[r][u][v]))
+        .sum()
 }
 
 impl<'a> Callback for StopSubtourCallback<'a> {
@@ -188,6 +220,48 @@ mod tests {
         assert_eq!(cb.num_nodes, 2);
         assert_eq!(cb.depot_id, 0);
         assert_eq!(cb.cache.x_arcs[0].len(), 2); // (0,1) and (1,0)
+        assert_eq!(cb.cache.y_vars[0].len(), 2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stop_subtour_cutset_generation() -> grb::Result<()> {
+        let env = Env::new("gurobi.log")?;
+        let mut model = Model::with_env("test_cb_cutset", &env)?;
+        let instance = Instance {
+            nodes: vec![
+                Node { id: 0, point: Point3 { x: 0.0, y: 0.0, z: 0.0 }, ..Default::default() },
+                Node { id: 1, point: Point3 { x: 1.0, y: 1.0, z: 0.0 }, ..Default::default() },
+                Node { id: 2, point: Point3 { x: 2.0, y: 2.0, z: 0.0 }, ..Default::default() },
+            ],
+            subgroups: vec![
+                Subgroup { id: 0, profit: 0.0, node_ids: vec![0], ..Default::default() },
+                Subgroup { id: 1, profit: 10.0, node_ids: vec![1, 2], ..Default::default() },
+            ],
+            clusters: vec![
+                Cluster { id: 0, subgroup_ids: vec![0] },
+                Cluster { id: 1, subgroup_ids: vec![1] },
+            ],
+            vehicles: vec![
+                Vehicle { id: 0, budget: 50.0, start_node_id: 0, end_node_id: 0 },
+            ],
+            ..Default::default()
+        };
+
+        let data = StopData::new(&instance);
+        let vars = initialize_variables(&mut model, &instance, &data)?;
+
+        let comp = vec![1, 2];
+        let dfj = build_dfj_expr(&vars, 0, &comp);
+        let cut_set = build_cut_set_expr(&vars, 0, &comp, instance.nodes.len());
+
+        let _constr_dfj = model.add_constr("test_dfj", c!(dfj <= 1.0))?;
+        let _constr_cut_1 = model.add_constr("test_cut_1", c!(cut_set.clone() >= vars.y[0][1]))?;
+        let _constr_cut_2 = model.add_constr("test_cut_2", c!(cut_set >= vars.y[0][2]))?;
+
+        model.update()?;
+        assert!(model.get_attr(attr::NumConstrs)? >= 3);
 
         Ok(())
     }

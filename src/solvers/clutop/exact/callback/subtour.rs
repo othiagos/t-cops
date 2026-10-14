@@ -110,37 +110,51 @@ impl<'a> CluTopSubtourCallback<'a> {
             for comp in components {
                 if !comp.contains(&self.depot_id) && comp.len() >= 2 {
                     // DFJ cut: edges in comp <= |comp| - 1
-                    let dfj_expr: grb::Expr = comp
-                        .iter()
-                        .flat_map(|&u| {
-                            comp.iter().filter(move |&&v| u < v).map(move |&v| {
-                                1.0 * self.variables.x[r][u][v]
-                            })
-                        })
-                        .sum();
-
+                    let dfj_expr = build_dfj_expr(self.variables, r, &comp);
                     let max_edges = (comp.len() - 1) as f64;
                     ctx.add_lazy(c!(dfj_expr <= max_edges))?;
 
-                    // Cut-set constraint: edges between comp and V \ comp >= 2 * y[r][first]
-                    let u0 = comp[0];
-                    let cut_set_expr: grb::Expr = comp
-                        .iter()
-                        .flat_map(|&u| {
-                            (0..self.num_nodes).filter(|n| !comp.contains(n)).map(move |v| {
-                                1.0 * self.variables.x[r][u.min(v)][u.max(v)]
-                            })
-                        })
-                        .sum();
-
-                    let y_trigger = self.variables.y[r][u0];
-                    ctx.add_lazy(c!(cut_set_expr >= 2.0 * y_trigger))?;
+                    // Cut-set constraint: edges between comp and V \ comp >= 2 * y[r][v] for every v in comp
+                    let cut_set_expr = build_cut_set_expr(self.variables, r, &comp, self.num_nodes);
+                    for &v in &comp {
+                        let y_trigger = self.variables.y[r][v];
+                        ctx.add_lazy(c!(cut_set_expr.clone() >= 2.0 * y_trigger))?;
+                    }
                 }
             }
         }
 
         Ok(())
     }
+}
+
+pub fn build_dfj_expr(
+    variables: &DecisionVariables,
+    r: usize,
+    comp: &[usize],
+) -> grb::Expr {
+    comp.iter()
+        .flat_map(|&u| {
+            comp.iter().filter(move |&&v| u < v).map(move |&v| {
+                1.0 * variables.x[r][u][v]
+            })
+        })
+        .sum()
+}
+
+pub fn build_cut_set_expr(
+    variables: &DecisionVariables,
+    r: usize,
+    comp: &[usize],
+    num_nodes: usize,
+) -> grb::Expr {
+    comp.iter()
+        .flat_map(|&u| {
+            (0..num_nodes).filter(|n| !comp.contains(n)).map(move |v| {
+                1.0 * variables.x[r][u.min(v)][u.max(v)]
+            })
+        })
+        .sum()
 }
 
 impl<'a> Callback for CluTopSubtourCallback<'a> {
