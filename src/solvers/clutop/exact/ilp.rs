@@ -18,13 +18,18 @@ use crate::solvers::clutop::exact::{
 use crate::solvers::clutop::CluTopOptions;
 
 pub struct Ilp<'a> {
-    model: Model,
+    pub model: Model,
     variables: DecisionVariables,
     instance: &'a Instance,
     data: CluTopData,
 }
 
 impl<'a> Ilp<'a> {
+    #[allow(dead_code)]
+    pub fn q(&self) -> &Model {
+        &self.model
+    }
+
     pub fn new(instance: &'a Instance) -> grb::Result<Self> {
         let env = Env::new("gurobi.log")?;
         let mut model = Model::with_env(&format!("{}_clutop", instance.name), &env)?;
@@ -58,7 +63,13 @@ impl<'a> Ilp<'a> {
         self.extract_solution(start_time)
     }
 
-    fn configure_solver(&mut self, options: &CluTopOptions) -> Result<(), SolverError> {
+    pub fn configure_solver(&mut self, options: &CluTopOptions) -> Result<(), SolverError> {
+        let threads = std::thread::available_parallelism()
+            .map(|n| n.get() as i32)
+            .unwrap_or(1);
+        
+        self.model.set_param(param::Threads, threads)?;
+        self.model.set_param(param::Seed, 137)?;
         self.model.set_param(param::LazyConstraints, 1)?;
 
         if let Some(limit) = options.time_limit {
