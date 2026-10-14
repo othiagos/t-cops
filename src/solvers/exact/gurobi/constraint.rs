@@ -283,6 +283,51 @@ pub fn budget(
     Ok(())
 }
 
+pub fn symmetry_breaking(
+    model: &mut Model,
+    variable: &DecisionVariables,
+    instance: &Instance,
+) -> grb::Result<()> {
+    let num_vehicles = instance.vehicles.len();
+    if num_vehicles <= 1 {
+        return Ok(());
+    }
+
+    let num_nodes = instance.nodes.len();
+
+    for r in 0..(num_vehicles.saturating_sub(1)) {
+        let v_curr = &instance.vehicles[r];
+        let v_next = &instance.vehicles[r + 1];
+
+        let same_budget = (v_curr.budget - v_next.budget).abs() < 1e-6;
+        let same_start = v_curr.start_node_id == v_next.start_node_id;
+        let same_end = v_curr.end_node_id == v_next.end_node_id;
+
+        if same_budget && same_start && same_end {
+            let start = v_curr.start_node_id;
+            let end = v_curr.end_node_id;
+
+            for i in 0..num_nodes {
+                if i == start || i == end {
+                    continue;
+                }
+
+                let sum_prev: grb::Expr = (0..i)
+                    .filter(|&j| j != start && j != end)
+                    .map(|j| 1.0 * variable.y[r][j])
+                    .sum();
+
+                model.add_constr(
+                    &format!("symm_order_v{}_v{}_n{}", r, r + 1, i),
+                    c!(variable.y[r + 1][i] <= sum_prev),
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -442,9 +487,60 @@ mod tests {
         logical_physical_y_leq_z(&mut model, &vars, &instance)?;
         cluster(&mut model, &vars, &instance)?;
         budget(&mut model, &vars, &instance)?;
+        symmetry_breaking(&mut model, &vars, &instance)?;
 
         model.update()?;
         assert!(model.get_attr(attr::NumConstrs)? > 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_symmetry_breaking_homogeneous_vehicles() -> grb::Result<()> {
+        let env = Env::new("gurobi.log")?;
+        let mut model = Model::with_env("symm_homo_test", &env)?;
+        let mut instance = create_test_instance();
+        instance.vehicles.push(Vehicle {
+            id: 1,
+            budget: 50.0,
+            start_node_id: 0,
+            end_node_id: 0,
+        });
+
+        let x = variable::initialize_x(&mut model, &instance)?;
+        let y = variable::initialize_y(&mut model, &instance)?;
+        let z = variable::initialize_z(&mut model, &instance)?;
+        let w = variable::initialize_w(&mut model, &instance)?;
+        let vars = DecisionVariables { x, y, z, w };
+
+        symmetry_breaking(&mut model, &vars, &instance)?;
+        model.update()?;
+        assert!(model.get_attr(attr::NumConstrs)? > 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_symmetry_breaking_heterogeneous_vehicles() -> grb::Result<()> {
+        let env = Env::new("gurobi.log")?;
+        let mut model = Model::with_env("symm_hetero_test", &env)?;
+        let mut instance = create_test_instance();
+        instance.vehicles.push(Vehicle {
+            id: 1,
+            budget: 80.0, // Different budget
+            start_node_id: 0,
+            end_node_id: 0,
+        });
+
+        let x = variable::initialize_x(&mut model, &instance)?;
+        let y = variable::initialize_y(&mut model, &instance)?;
+        let z = variable::initialize_z(&mut model, &instance)?;
+        let w = variable::initialize_w(&mut model, &instance)?;
+        let vars = DecisionVariables { x, y, z, w };
+
+        symmetry_breaking(&mut model, &vars, &instance)?;
+        model.update()?;
+        assert_eq!(model.get_attr(attr::NumConstrs)?, 0);
 
         Ok(())
     }

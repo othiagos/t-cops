@@ -101,6 +101,7 @@ impl<'a> Ilp<'a> {
         constraint::cluster(model, variable, instance)?;
         constraint::budget(model, variable, instance)?;
         constraint::logical_visit(model, variable, instance)?;
+        constraint::symmetry_breaking(model, variable, instance)?;
 
         objective::set_objective(model, variable, instance)?;
 
