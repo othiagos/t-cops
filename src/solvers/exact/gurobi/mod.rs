@@ -71,6 +71,7 @@ mod tests {
             folder_result: "./result".to_string(),
             custom_result_name: None,
             gurobi_params_file: None,
+            enable_fractional_cuts: false,
             #[cfg(feature = "lib_good_lp")]
             solver: None,
         };

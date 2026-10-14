@@ -57,7 +57,11 @@ impl<'a> Ilp<'a> {
 
         self.build_model()?;
 
-        let mut callback = SubtourCallback::new(&self.variables, self.instance);
+        let mut callback = SubtourCallback::new(
+            &self.variables,
+            self.instance,
+            args.enable_fractional_cuts,
+        );
         self.model.optimize_with_callback(&mut callback)?;
 
         self.extract_solution(start_time)
@@ -193,6 +197,7 @@ mod tests {
             folder_result: "./result".to_string(),
             custom_result_name: None,
             gurobi_params_file: None,
+            enable_fractional_cuts: false,
             #[cfg(feature = "lib_good_lp")]
             solver: None,
         };

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use clap::Parser;
 use grb::prelude::*;
 use tcops::{
     cli::{Cli, LibraryType, SolverMode},
@@ -67,6 +68,7 @@ fn create_test_cli() -> Cli {
         folder_result: "./result".to_string(),
         custom_result_name: None,
         gurobi_params_file: None,
+        enable_fractional_cuts: false,
         #[cfg(feature = "lib_good_lp")]
         solver: None,
     }
@@ -179,6 +181,7 @@ fn test_deterministic_reproducibility() -> grb::Result<()> {
         folder_result: "./result".to_string(),
         custom_result_name: None,
         gurobi_params_file: None,
+        enable_fractional_cuts: false,
         #[cfg(feature = "lib_good_lp")]
         solver: None,
     };
@@ -234,6 +237,86 @@ fn test_deterministic_reproducibility() -> grb::Result<()> {
         assert_eq!(r1.path, r2.path);
         assert_eq!(r1.cost, r2.cost);
     }
+
+    Ok(())
+}
+
+#[test]
+fn test_cli_fractional_cuts_flag_default_is_false() {
+    let args = vec![
+        "tcops",
+        "--input", "data/tcops/att48.tcops",
+        "--mode", "exact",
+        "--library", "gurobi",
+    ];
+    let cli = Cli::try_parse_from(args).expect("Failed to parse minimal exact CLI");
+    assert!(!cli.enable_fractional_cuts);
+}
+
+#[test]
+fn test_cli_fractional_cuts_flag_parsing() {
+    let args = vec![
+        "tcops",
+        "--input", "data/tcops/att48.tcops",
+        "--mode", "exact",
+        "--library", "gurobi",
+        "--enable-fractional-cuts",
+    ];
+    let cli = Cli::try_parse_from(args).expect("Failed to parse exact CLI with --enable-fractional-cuts");
+    assert!(cli.enable_fractional_cuts);
+
+    let args_alias = vec![
+        "tcops",
+        "--input", "data/tcops/att48.tcops",
+        "--mode", "exact",
+        "--library", "gurobi",
+        "--fractional-cuts",
+    ];
+    let cli_alias = Cli::try_parse_from(args_alias).expect("Failed to parse exact CLI with --fractional-cuts");
+    assert!(cli_alias.enable_fractional_cuts);
+}
+
+#[test]
+fn test_tcops_parity_same_optimal_with_and_without_fractional() -> grb::Result<()> {
+    let instance_path = "resource/tcops/1/burma14.tcops";
+    if !Path::new(instance_path).exists() {
+        eprintln!("Skipping test_tcops_parity_same_optimal_with_and_without_fractional: instance file not found");
+        return Ok(());
+    }
+
+    let instance = load_instance(Path::new(instance_path))
+        .expect("Failed to load burma14.tcops");
+
+    let cli_pure_lazy = Cli {
+        input: PathBuf::from(instance_path),
+        mode: SolverMode::Exact,
+        library: Some(LibraryType::Gurobi),
+        max_iterations: 10,
+        max_shaking_intensity: 5,
+        show: false,
+        save: false,
+        time_limit: Some(15),
+        folder_result: "./result".to_string(),
+        custom_result_name: None,
+        gurobi_params_file: None,
+        enable_fractional_cuts: false,
+        #[cfg(feature = "lib_good_lp")]
+        solver: None,
+    };
+
+    let mut cli_fractional = cli_pure_lazy.clone();
+    cli_fractional.enable_fractional_cuts = true;
+
+    let sol_pure_lazy = exact::gurobi::solve(&instance, &cli_pure_lazy)
+        .expect("T-COPS without fractional cuts should solve");
+    let sol_fractional = exact::gurobi::solve(&instance, &cli_fractional)
+        .expect("T-COPS with fractional cuts should solve");
+
+    assert_eq!(
+        sol_pure_lazy.total_score,
+        sol_fractional.total_score,
+        "Optimal objective z* must be identical with and without fractional cuts"
+    );
 
     Ok(())
 }

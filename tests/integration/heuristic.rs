@@ -23,6 +23,7 @@ fn create_heuristic_cli(input_path: &str, max_iterations: usize, max_shaking: us
         folder_result: "./result".to_string(),
         custom_result_name: None,
         gurobi_params_file: None,
+        enable_fractional_cuts: false,
     }
 }
 

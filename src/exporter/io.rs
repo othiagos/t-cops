@@ -447,6 +447,7 @@ mod tests {
             folder_result: folder_result.clone(),
             custom_result_name: Some("custom_res".to_string()),
             gurobi_params_file: None,
+            enable_fractional_cuts: false,
         };
 
         let output_path = export_solution_to_json(&sol, &cli);

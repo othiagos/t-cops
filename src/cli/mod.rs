@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum, ValueHint};
 use std::path::PathBuf;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(
     author,
     version,
@@ -57,6 +57,10 @@ pub struct Cli {
     /// Gurobi parameters file (Only for mode=exact and library=gurobi)
     #[arg(long, value_name = "FILE", value_hint = ValueHint::FilePath)]
     pub gurobi_params_file: Option<String>,
+
+    /// Enable fractional cuts separation at MIPNode callback (Only for mode=exact and library=gurobi)
+    #[arg(long, alias = "fractional-cuts", default_value_t = false)]
+    pub enable_fractional_cuts: bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -230,6 +234,41 @@ mod tests {
     fn test_cli_invalid_library_value() {
         let args = vec!["tcops", "--input", "data/tcops/att48.tcops", "--mode", "exact", "--library", "invalid_lib"];
         assert!(Cli::try_parse_from(args).is_err());
+    }
+
+    #[test]
+    fn test_cli_fractional_cuts_flag_default_is_false() {
+        let args = vec![
+            "tcops",
+            "--input", "data/tcops/att48.tcops",
+            "--mode", "exact",
+            "--library", "gurobi",
+        ];
+        let cli = Cli::try_parse_from(args).expect("Failed to parse minimal exact CLI");
+        assert!(!cli.enable_fractional_cuts);
+    }
+
+    #[test]
+    fn test_cli_fractional_cuts_flag_parsing() {
+        let args = vec![
+            "tcops",
+            "--input", "data/tcops/att48.tcops",
+            "--mode", "exact",
+            "--library", "gurobi",
+            "--enable-fractional-cuts",
+        ];
+        let cli = Cli::try_parse_from(args).expect("Failed to parse exact CLI with --enable-fractional-cuts");
+        assert!(cli.enable_fractional_cuts);
+
+        let args_alias = vec![
+            "tcops",
+            "--input", "data/tcops/att48.tcops",
+            "--mode", "exact",
+            "--library", "gurobi",
+            "--fractional-cuts",
+        ];
+        let cli_alias = Cli::try_parse_from(args_alias).expect("Failed to parse exact CLI with --fractional-cuts");
+        assert!(cli_alias.enable_fractional_cuts);
     }
 }
 

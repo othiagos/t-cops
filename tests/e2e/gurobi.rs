@@ -25,6 +25,7 @@ fn create_e2e_cli(
         folder_result: folder_result.to_string(),
         custom_result_name: custom_name,
         gurobi_params_file: None,
+        enable_fractional_cuts: false,
     }
 }
 

@@ -10,14 +10,20 @@ use super::{io, separation, utils};
 pub struct SubtourCallback<'a> {
     pub variables: &'a DecisionVariables,
     pub instance: &'a Instance,
+    pub enable_fractional_cuts: bool,
     cache: Option<CallbackCache>,
 }
 
 impl<'a> SubtourCallback<'a> {
-    pub fn new(variables: &'a DecisionVariables, instance: &'a Instance) -> Self {
+    pub fn new(
+        variables: &'a DecisionVariables,
+        instance: &'a Instance,
+        enable_fractional_cuts: bool,
+    ) -> Self {
         Self {
             variables,
             instance,
+            enable_fractional_cuts,
             cache: None,
         }
     }
@@ -100,7 +106,7 @@ impl<'a> Callback for SubtourCallback<'a> {
         }
 
         match w {
-            Where::MIPNode(mut ctx) => self.handle_fractional(&mut ctx),
+            Where::MIPNode(mut ctx) if self.enable_fractional_cuts => self.handle_fractional(&mut ctx),
             Where::MIPSol(mut ctx) => self.handle_integer(&mut ctx),
             _ => Ok(()),
         }
