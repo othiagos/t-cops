@@ -16,29 +16,27 @@ THETA = 1.0
 SUBGROUPS_PER_CUSTOMER = 0.2
 CLUSTERS_PER_SUBGROUP = 0.2
 
-EXACT_INSTANCES = [
+SMALL_INSTANCES = [
     "burma14", "ulysses16", "ulysses22", "att48", "eil51", "berlin52", 
     "st70", "eil76", "pr76", "gr96", "rat99", "kroA100", "rd100", 
     "eil101", "lin105", "pr124", "bier127", "ch130", "pr136", "pr144", 
     "ch150", "kroA150", "pr152", "u159", "rat195", "d198", "kroA200", "gr202", "ts225"
 ]
 
-HEURISTIC_SMALL = [
+LARGE_INSTANCES = [
     "gil262", "a280", "lin318", "rd400", "pcb442", "d493", 
-    "att532", "u574", "p654", "d657", "u724", "rat783", "dsj1000"
-]
-
-HEURISTIC_LARGE = [
+    "att532", "u574", "p654", "d657", "u724", "rat783", "dsj1000",
     "u1060", "pcb1173", "rl1304", "nrw1379", "fl1577", "u1817", "d2103", 
     "pr2392", "pcb3038", "fnl4461", "rl5934", "pla7397", "rl11849", 
     "usa13509", "d18512", "pla33810"
 ]
 
 INSTANCE_VEHICLES_MAP = {}
-for inst in EXACT_INSTANCES + HEURISTIC_SMALL:
+for inst in SMALL_INSTANCES:
     INSTANCE_VEHICLES_MAP[inst.lower()] = [1, 2, 3, 4]
-for inst in HEURISTIC_LARGE:
+for inst in LARGE_INSTANCES:
     INSTANCE_VEHICLES_MAP[inst.lower()] = [5, 7, 9]
+
 
 
 def load_solutions(filepath):
