@@ -44,9 +44,9 @@ def ensure_binaries():
         subprocess.run(["cargo", "build", "--release"], check=True)
 
 
-def run_experiment(problem_type, mode, instance, vehicles, iteration, executable=None, folder_name=None):
+def run_experiment(problem_type, mode, instance, vehicles, iteration, executable=None, folder_name=None, enable_fractional_cuts=False):
     input_file = f"resource/{problem_type}/{vehicles}/{instance}.tcops"
-    output_folder_name = folder_name if folder_name is not None else problem_type
+    output_folder_name = folder_name if folder_name is not None else (f"{problem_type}_fractional_cuts" if enable_fractional_cuts else problem_type)
     folder_result = f"{EXPERIMENT_DIR}/{output_folder_name}/{mode}/{vehicles}"
     custom_result_name = f"{instance}_{iteration}"
     
@@ -84,6 +84,8 @@ def run_experiment(problem_type, mode, instance, vehicles, iteration, executable
             "--library", "gurobi",
             "--time-limit", str(TIME_LIMIT_EXACT)
         ])
+        if enable_fractional_cuts:
+            cmd.append("--enable-fractional-cuts")
 
     print(f"[EXEC] Running: {output_folder_name.upper()} | {mode.upper()} | {instance} | V={vehicles} | Iter={iteration}")
     
@@ -110,6 +112,9 @@ def main():
             for i in range(1, EXECUTIONS_EXACT + 1):
                 run_experiment("tcops", "exact", instance, v, i, executable=EXECUTABLE, folder_name="tcops")
 
+        for v in VEHICLES_EXACT_TCOPS:
+            for i in range(1, EXECUTIONS_EXACT + 1):
+                run_experiment("tcops", "exact", instance, v, i, executable=EXECUTABLE, folder_name="tcops_fractional_cuts", enable_fractional_cuts=True)
 
         for v in VEHICLES_EXACT_CLUTOP_STOP:
             for i in range(1, EXECUTIONS_EXACT + 1):
