@@ -4,10 +4,6 @@
 [![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
 [![Gurobi](https://img.shields.io/badge/solver-Gurobi%2012%2B-red.svg)](https://www.gurobi.com/)
 
-This repository provides the official implementation, instance library, and experimental replication code for the **Team Clustered Orienteering Problem with Subgroups (TCOPS)**.
-
----
-
 ## Table of Contents
 
 - [Overview](#overview)
@@ -34,10 +30,8 @@ This repository provides the official implementation, instance library, and expe
 
 The **Team Clustered Orienteering Problem with Subgroups (TCOPS)** is an extension of the **Clustered Orienteering Problem with Subgroups (COPS)** to cooperative multi-vehicle fleets.
 
-
-
 Key components provided in this repository:
-- **Exact Solver**: Integer Linear Programming (ILP) formulation solved via **Gurobi** with lazy subtour elimination constraints and symmetry-breaking cuts.
+- **Exact Solver**: Integer Linear Programming (ILP) formulation solved via **Gurobi** with lazy subtour elimination constraints, symmetry-breaking cuts, and optional fractional cuts.
 - **Metaheuristic Solver**: High-performance **Variable Neighborhood Search (VNS)** with randomized shaking and multiple local search operators.
 
 ---
@@ -48,12 +42,16 @@ Key components provided in this repository:
 .
 ├── src/                    # Rust source code
 │   ├── main.rs             # TCOPS CLI entrypoint
+│   ├── lib.rs              # Library root and shared modules
+│   ├── bin/                # Standalone comparative binaries (clutop, stop)
 │   ├── cli/                # Command-line interface definitions (clap)
 │   ├── common/             # Instance, solution, and geometric data structures
 │   ├── parser/             # Instance parser and validator
 │   ├── solvers/            # Exact and Heuristic solvers
 │   │   ├── exact/          # ILP formulations (Gurobi)
-│   │   └── heuristic/      # Variable Neighborhood Search (VNS) heuristic
+│   │   ├── heuristic/      # Variable Neighborhood Search (VNS) heuristic
+│   │   ├── clutop/         # CluTOP baseline solvers (exact & heuristic)
+│   │   └── stop/           # STOP baseline solvers (exact & heuristic)
 │   ├── plotter/            # Visualization
 │   ├── printer.rs          # Console report formatter
 │   ├── runner.rs           # Solver execution coordinator
@@ -69,11 +67,11 @@ Key components provided in this repository:
 │   ├── experiment.py       # Batch experiment executor benchmarks
 │   ├── visualizer.py       # Route plotting and diagram generation
 │   ├── tsp2tcops.py        # TSPLIB to TCOPS instance converter
-│   └── tsp2clutop_stop.py  # TSPLIB TO CluTOP and STOP instance converter
+│   ├── tsp2clutop_stop.py  # TSPLIB to CluTOP and STOP instance converter
+│   └── table/              # Scripts generating paper LaTeX tables
 ├── tests/                  # End-to-end and integration tests
 ├── requirements.txt        # Python package dependencies
 ├── Cargo.toml              # Rust build configuration and dependencies
-├── Makefile                # Build and execution shortcuts
 └── gurobi.prm              # Gurobi solver configuration parameters
 ```
 
@@ -114,14 +112,12 @@ For exact ILP resolution:
 Compile the project with maximum release optimizations:
 
 ```bash
-# Using Cargo
 cargo build --release
 
-# Or using Make
-make build
-
-# The executable is generated at:
+# The executables are generated at:
 target/release/tcops
+target/release/clutop
+target/release/stop
 ```
 
 ---
@@ -145,6 +141,7 @@ The solver can be executed via Cargo (`cargo run --release -- [ARGS]`), or direc
 | `--custom-result-name <NAME>` | String | No | Auto | Custom base name for the result file (without extension) |
 | `--show` | Flag | No | `false` | Display interactive graphical plot of routes upon completion |
 | `--gurobi-params-file <FILE>` | Path | No | — | Path to custom Gurobi configuration parameter file (e.g. `gurobi.prm`) |
+| `--enable-fractional-cuts` | Flag | No | `false` | Enable fractional SEC cuts separation at MIPNode callback (Gurobi) |
 
 ---
 
@@ -159,9 +156,6 @@ To solve an instance using the Variable Neighborhood Search metaheuristic:
 cargo run --release -- \
   --input resource/tcops/3/burma14.tcops \
   --mode heuristic
-
-# Or equivalently via Make
-make run input=resource/tcops/3/burma14.tcops mode=heuristic
 
 # Heuristic run with customized iterations and result export
 cargo run --release -- \
@@ -185,6 +179,14 @@ cargo run --release -- \
   --library gurobi \
   --time-limit 300 \
   --save
+
+# Exact resolution enabling fractional SEC cuts
+cargo run --release -- \
+  --input resource/tcops/3/burma14.tcops \
+  --mode exact \
+  --library gurobi \
+  --enable-fractional-cuts \
+  --time-limit 300
 ```
 
 #### 3. Running with Graphical Visualization
@@ -206,10 +208,10 @@ cargo run --release -- \
 To replicate the computational experiments reported in the paper across exact and heuristic benchmarks:
 
 ```bash
-# 1. Compile release binary
+# 1. Compile release binaries
 cargo build --release
 
-# 2. Execute experiment orchestration script
+# 2. Execute experiment script
 python3 script/experiment.py
 ```
 
@@ -217,8 +219,6 @@ The script manages:
 - 30 independent runs per instance for stochastic metaheuristics.
 - Exact solver executions with a 3600s timeout per instance.
 - Automatic result logging into `experiment/<problem_type>/<mode>/<vehicles>/`.
-
----
 
 ## Benchmark Instances & File Format
 
@@ -275,8 +275,11 @@ cargo test
 # Run parser-specific test suite
 cargo test parser
 
-# Run end-to-end and integration tests
+# Run integration tests
 cargo test --test integration_tests
+
+# Run end-to-end tests
+cargo test --test e2e_tests
 ```
 
 ---
